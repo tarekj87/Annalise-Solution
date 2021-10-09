@@ -9,7 +9,7 @@ on:
 jobs:
 
   # Deploy to  AWS Region: ap-southeast-2
-  Terraform_Deploy_Singapore:
+  Terraform_Deploy_Australia:
     name: 'Terraform'
     runs-on: ubuntu-latest
     env:
