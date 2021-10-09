@@ -1,0 +1,79 @@
+name: 'Terraform'
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+
+jobs:
+
+  # Deploy to  AWS Region: ap-southeast-2
+  Terraform_Deploy_Singapore:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    env:
+      Region: ap-southeast-2
+          
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.Region }}
+
+    # Install the latest version of Terraform CLI 
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      run: terraform -chdir=terraform init -var="aws-region=${{ env.Region }}"
+
+    # Checks that all Terraform configuration files adhere to a canonical format
+    - name: Terraform Format
+      run: terraform -chdir=terraform fmt -check -var="aws-region=${{ env.Region }}"
+
+    # Generates an execution plan for Terraform
+    - name: Terraform Plan
+      run: terraform -chdir=terraform plan -var="aws-region=${{ env.Region }}"
+
+    # Create AWS ECR Repository
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform -chdir=terraform apply -auto-approve -target=module.ecr -var="aws-region=${{ env.Region }}"
+
+    # Login to ECR 
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+     
+    # Build Application Docker Image
+    - name: Build, tag, and push Web image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: myrepo
+        IMAGE_TAG: latest
+      run: |
+        # Build a docker container and
+        # push it to ECR so that it can
+        # be deployed to ECS.
+        docker build -t  $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Dockerfile ./app
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+    # Deploy ECS and APP 
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform -chdir=terraform apply -auto-approve -var="aws-region=${{ env.Region }}"
