@@ -4,7 +4,6 @@ public_subnets      = ["10.1.40.0/24", "10.1.50.0/24","10.1.60.0/24"]
 
 
 cluster_name        = "My-Cluster"
-image_name          = "nginx"
 image_tag           = "latest"
 container_name      = "My-Container"
 hostPort            = 4567

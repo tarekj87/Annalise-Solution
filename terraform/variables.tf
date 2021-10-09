@@ -18,10 +18,9 @@ variable "private_subnets" {
   description = "List of public subnets"
 }
 
-variable "cluster_name" {}
-variable "image_name" {
-  type = string
+variable "cluster_name" {
 }
+
 variable "image_tag" {
   type = string
   default = "latest"
